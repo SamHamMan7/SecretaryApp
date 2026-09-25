@@ -1,329 +1,588 @@
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
 public class Main {
-    public static void main(String[] args) throws IOException{
-        File file = new File("minutes.txt");
+    private static final String OUTPUT_FILE = "minutes.txt";
+
+    static class Task {
+        String description;
+        String assignee;
+
+        Task(String description, String assignee) {
+            this.description = description;
+            this.assignee = assignee;
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 
-        //many arraylists and temporary files to contain all information
         ArrayList<String> attendance = new ArrayList<>();
-        ArrayList<String> tasks = new ArrayList<>();
-        ArrayList<String> assignTasks = new ArrayList<>();
-        //ArrayList<String> dueTasks = new ArrayList<>();
-        File Notes = new File("MeetingNotes.txt");
+        ArrayList<String> notes = new ArrayList<>();
+        ArrayList<Task> tasks = new ArrayList<>();
         ArrayList<String> unresolvedDiscussion = new ArrayList<>();
 
-        //it's beneficial to have a variable for strings as a place holder. 
-        String command = "";
-        
-        //takes in the start time of the secretary 
         System.out.print("What time is it (start time): ");
         String startTime = in.readLine().strip();
 
-        //showcase all the commands (commands start with "fj") 
-        //When a command is called, then it will remain on that command until changed otherwise. 
-        //When a one-time command is called, automatically change to fjn mode  
-        //please note that any names or letters that start with "fj" will count it as a command
-        /*
-        fja = attendance (in case someone happens to walk in)
-        fjt = new task to accomplish 
-        fjn = note (* for important notes)
-        fjsn = show current notes (*indicates important notes, not yet implemented on how it can ever become useful though)
-        fjst = show current tasks 
-        fjat = assign a person to a task
-        fju = unresolved discussion 
-        fjc = show available commands 
-        fjend = initiate the end sequence 
-        */
+        showCommands();
+        String command = readCommand(in);
 
-        command = in.readLine().strip();
-
-        do{
-            switch(command){
+        while (true) {
+            switch (command) {
                 case "fja":
                     command = attendance(attendance, in);
                     break;
+
                 case "fjt":
-                    command = addTask(tasks, assignTasks, in);
+                    command = addTask(tasks, in);
                     break;
+
                 case "fjn":
-                    command = note(Notes, in);
+                    command = note(notes, in);
                     break;
+
                 case "fjsn":
-                    showCurrentNotes(Notes);
-                    System.out.print("Enter a command: ");
-                    command = in.readLine().strip();
+                    showCurrentNotes(notes);
+                    command = readCommand(in);
                     break;
-                case  "fjst":
-                    showCurrentTasks(tasks, assignTasks);
-                    System.out.print("Enter a command: ");
-                    command = in.readLine().strip();
+
+                case "fjst":
+                    showCurrentTasks(tasks);
+                    command = readCommand(in);
                     break;
+
                 case "fjat":
-                    command = assignTask(tasks, assignTasks, in);
+                    command = assignTask(tasks, in);
                     break;
+
                 case "fju":
                     command = unresolvedDiscussion(unresolvedDiscussion, in);
                     break;
+
                 case "fjsu":
                     showUnresolvedDiscussion(unresolvedDiscussion);
-                    System.out.print("Enter a command: ");
-                    command = in.readLine().strip();
+                    command = readCommand(in);
                     break;
+
                 case "fjau":
-                    markUnresolvedDiscussion(unresolvedDiscussion, in);
+                    command = markUnresolvedDiscussion(unresolvedDiscussion, in);
                     break;
+
+                case "fjc":
+                    showCommands();
+                    command = readCommand(in);
+                    break;
+
                 case "fjend":
-                    System.out.print("Are you sure you want to end? (Y/N): ");
-                    if(in.readLine().strip().toLowerCase().charAt(0) == 'y'){
-                        end(in, file, startTime, attendance, Notes, tasks, assignTasks, unresolvedDiscussion);
-                    }else{
-                        System.out.print("Enter a command: ");
-                        command = in.readLine().strip();
+                    if (confirmEnd(in)) {
+                        end(in, startTime, attendance, notes,
+                                tasks, unresolvedDiscussion);
+
+                        System.out.println("Minutes saved to " + OUTPUT_FILE);
+                        return;
                     }
+
+                    command = readCommand(in);
                     break;
+
                 default:
-                    command = note(Notes, in);
+                    System.out.println(
+                            "Unknown command. Type fjc to see the command list.");
+                    command = readCommand(in);
                     break;
             }
-        }while(!command.equals("fjend"));
-
-        System.out.println(attendance);
-        System.out.println(tasks);
-        System.out.println(assignTasks);
-    }
-
-    //attendance method 
-    static String attendance(ArrayList<String> attendance, BufferedReader in) throws IOException{
-        String temp = "";
-        
-        //instructions: 
-        System.out.println("ATTENDANCE: (please enter each name on separate lines)");
-
-        //loop until the user gets out of the attendance loop
-        do{
-            temp = in.readLine().strip();
-            //if it is not a command that is entered: 
-            if(!temp.contains("fj")){
-                //and that the attendance array doesn't already have that name in it: 
-                if(!attendance.contains(temp)){
-                    attendance.add(temp);
-                }else{
-                    System.out.println("Name already exists");
-                }
-            }
-        }while(!temp.contains("fj"));
-
-        return temp;
-    }
-
-    static String addTask(ArrayList<String> tasks, ArrayList<String> assignTasks, BufferedReader in) throws IOException{
-        String temp = "";
-
-        //instructions: 
-        System.out.println("ADD TASK: (enter needed tasks in separate lines, type letter \"=\" to assign on the same line)");
-
-        //loop until the user gets out of the loop 
-        do{
-            temp = in.readLine().strip();
-            if(temp.contains("=")){
-                tasks.add((temp.substring(0, temp.indexOf("="))).strip());
-                assignTasks.add((temp.substring(temp.indexOf("=") + 1)).strip());
-            }else{
-                tasks.add(temp);
-                assignTasks.add("unassigned");
-            }
-        }while(!temp.contains("fj"));
-        
-        return temp;
-    }
-
-    static String note(File Notes, BufferedReader in) throws IOException{
-        PrintWriter out = new PrintWriter(Notes);
-        String temp = "";
-
-        //instructions: 
-        System.out.println("NOTES: ");
-
-        //loop until the user gets out of the loop 
-        while(!temp.contains("fj")){
-            temp = in.readLine();
-            if(!temp.contains("fj")){
-                out.println(temp);
-            }
-            
         }
-        
-        out.close();
-        return temp;
     }
 
-    static void showCurrentNotes(File Notes) throws IOException{
-        BufferedReader read = new BufferedReader(new FileReader(Notes));
-        String temp;
-        
-        //description
+    static String readCommand(BufferedReader in) throws IOException {
+        System.out.print("Enter a command: ");
+        return in.readLine().strip().toLowerCase();
+    }
+
+    static boolean isCommand(String input) {
+        if (input == null) {
+            return false;
+        }
+
+        switch (input.strip().toLowerCase()) {
+            case "fja":
+            case "fjt":
+            case "fjn":
+            case "fjsn":
+            case "fjst":
+            case "fjat":
+            case "fju":
+            case "fjsu":
+            case "fjau":
+            case "fjc":
+            case "fjend":
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    static void showCommands() {
+        System.out.println("\nAVAILABLE COMMANDS");
+        System.out.println("fja   - add attendance");
+        System.out.println("fjt   - add a task");
+        System.out.println("fjn   - add notes");
+        System.out.println("fjsn  - show current notes");
+        System.out.println("fjst  - show current tasks");
+        System.out.println("fjat  - assign a person to a task");
+        System.out.println("fju   - add an unresolved discussion");
+        System.out.println("fjsu  - show unresolved discussions");
+        System.out.println("fjau  - mark an unresolved discussion as resolved");
+        System.out.println("fjc   - show available commands");
+        System.out.println("fjend - end the meeting\n");
+    }
+
+    static String attendance(
+            ArrayList<String> attendance,
+            BufferedReader in) throws IOException {
+
+        System.out.println(
+                "ATTENDANCE: enter one name per line. "
+                        + "Enter any command when finished.");
+
+        while (true) {
+            String input = in.readLine().strip();
+
+            if (isCommand(input)) {
+                return input.toLowerCase();
+            }
+
+            if (input.isEmpty()) {
+                continue;
+            }
+
+            if (attendance.contains(input)) {
+                System.out.println("Name already exists.");
+            } else {
+                attendance.add(input);
+            }
+        }
+    }
+
+    static String addTask(
+            ArrayList<Task> tasks,
+            BufferedReader in) throws IOException {
+
+        System.out.println(
+                "ADD TASK: enter a task, or use task = person "
+                        + "to assign it immediately.");
+
+        System.out.println("Enter any command when finished.");
+
+        while (true) {
+            String input = in.readLine().strip();
+
+            if (isCommand(input)) {
+                return input.toLowerCase();
+            }
+
+            if (input.isEmpty()) {
+                continue;
+            }
+
+            int equals = input.indexOf('=');
+
+            if (equals >= 0) {
+                String description =
+                        input.substring(0, equals).strip();
+
+                String assignee =
+                        input.substring(equals + 1).strip();
+
+                if (description.isEmpty()) {
+                    System.out.println(
+                            "Task description cannot be empty.");
+                    continue;
+                }
+
+                if (assignee.isEmpty()) {
+                    assignee = "unassigned";
+                }
+
+                tasks.add(new Task(description, assignee));
+
+            } else {
+                tasks.add(new Task(input, "unassigned"));
+            }
+        }
+    }
+
+    static String note(
+            ArrayList<String> notes,
+            BufferedReader in) throws IOException {
+
+        System.out.println(
+                "NOTES: enter one note per line. "
+                        + "Enter any command when finished.");
+
+        while (true) {
+            String input = in.readLine();
+
+            if (isCommand(input)) {
+                return input.strip().toLowerCase();
+            }
+
+            notes.add(input);
+        }
+    }
+
+    static void showCurrentNotes(ArrayList<String> notes) {
         System.out.println("CURRENT NOTES:");
 
-        //print out all the items in the notes 
-        while((temp = read.readLine()) != null){
-            System.out.println(temp);
-        }
-        System.out.println("/*end of file*/");
-
-        read.close();
-    }
-
-    static void showCurrentTasks(ArrayList<String> tasks, ArrayList<String> assignTasks) {        
-        //description
-        System.out.println("CURRENT TASKS: ");
-
-        //print out all the items stored in tasks as well as who is assigned to them
-        for(int i = 0; i < tasks.size(); i++){
-            System.out.println(tasks.get(i) + " - " + assignTasks.get(i));
+        if (notes.isEmpty()) {
+            System.out.println("No notes recorded.");
+        } else {
+            for (String note : notes) {
+                System.out.println(note);
+            }
         }
 
-        System.out.println("/*end of tasks*/");
+        System.out.println("/* end of notes */");
     }
 
-    static String assignTask(ArrayList<String> tasks, ArrayList<String> assignTasks, BufferedReader in) throws IOException{
-        String temp = "";
+    static void showCurrentTasks(ArrayList<Task> tasks) {
+        System.out.println("CURRENT TASKS:");
 
-        //instructions: 
-        System.out.println("ASSIGN TASK: (enter the number followed by a \"-\" and the name) [e.g.: 1 - John Smith]");
+        if (tasks.isEmpty()) {
+            System.out.println("No tasks recorded.");
+        } else {
+            for (int i = 0; i < tasks.size(); i++) {
+                Task task = tasks.get(i);
 
-        //loop until the user gets out of the loop 
-        do{
-            if(!temp.contains("fj")){
-                showCurrentTasks(tasks, assignTasks);
-                temp = in.readLine().strip();
-                int num = Integer.parseInt(temp.substring(0, 1));
-                if(temp.contains("-")){
-                    assignTasks.set(num, (temp.substring(temp.indexOf("-") + 1)).strip());
+                System.out.println(
+                        (i + 1) + ". "
+                                + task.description
+                                + " - "
+                                + task.assignee);
+            }
+        }
+
+        System.out.println("/* end of tasks */");
+    }
+
+    static String assignTask(
+            ArrayList<Task> tasks,
+            BufferedReader in) throws IOException {
+
+        if (tasks.isEmpty()) {
+            System.out.println("There are no tasks to assign.");
+            return readCommand(in);
+        }
+
+        System.out.println(
+                "ASSIGN TASK: enter task number - name, "
+                        + "for example: 1 - John Smith");
+
+        System.out.println("Enter any command when finished.");
+
+        while (true) {
+            showCurrentTasks(tasks);
+
+            String input = in.readLine().strip();
+
+            if (isCommand(input)) {
+                return input.toLowerCase();
+            }
+
+            int dash = input.indexOf('-');
+
+            if (dash < 0) {
+                System.out.println(
+                        "Use the format: 1 - John Smith");
+                continue;
+            }
+
+            try {
+                int taskNumber = Integer.parseInt(
+                        input.substring(0, dash).strip());
+
+                String assignee =
+                        input.substring(dash + 1).strip();
+
+                int index = taskNumber - 1;
+
+                if (index < 0 || index >= tasks.size()) {
+                    System.out.println("Invalid task number.");
+
+                } else if (assignee.isEmpty()) {
+                    System.out.println(
+                            "Assignee cannot be empty.");
+
+                } else {
+                    tasks.get(index).assignee = assignee;
+
+                    System.out.println(
+                            "Task " + taskNumber
+                                    + " assigned to "
+                                    + assignee + ".");
                 }
-            }
-        }while(!temp.contains("fj"));
 
-        return temp;
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid task number.");
+            }
+        }
     }
 
-    static String unresolvedDiscussion(ArrayList<String> unresolvedDiscussion, BufferedReader in) throws IOException{
-        String temp = "";
+    static String unresolvedDiscussion(
+            ArrayList<String> unresolvedDiscussion,
+            BufferedReader in) throws IOException {
 
-        //instructions: 
-        System.out.println("UNRESOLVED DISCUSSION: ");
+        System.out.println(
+                "UNRESOLVED DISCUSSION: enter one item per line. "
+                        + "Enter any command when finished.");
 
-        //loop until the user gets out of the  loop
-        do{
-            temp = in.readLine().strip();
-            //if it is not a command that is entered: 
-            if(!temp.contains("fj")){
-                unresolvedDiscussion.add(temp);
+        while (true) {
+            String input = in.readLine().strip();
+
+            if (isCommand(input)) {
+                return input.toLowerCase();
             }
-        }while(!temp.contains("fj"));
 
-        return temp;
+            if (!input.isEmpty()) {
+                unresolvedDiscussion.add(input);
+            }
+        }
     }
 
-    static void showUnresolvedDiscussion(ArrayList<String> unresolvedDiscussion) {        
-        //description
-        System.out.println("CURRENT UNRESOLVED DISCUSSIONS: ");
+    static void showUnresolvedDiscussion(
+            ArrayList<String> unresolvedDiscussion) {
 
-        //print out all the items stored in the unresolved discussion array 
-        for(int i = 0; i < unresolvedDiscussion.size(); i++){
-            System.out.println(unresolvedDiscussion.get(i));
+        System.out.println(
+                "CURRENT UNRESOLVED DISCUSSIONS:");
+
+        if (unresolvedDiscussion.isEmpty()) {
+            System.out.println(
+                    "No unresolved discussions.");
+        } else {
+            for (int i = 0;
+                 i < unresolvedDiscussion.size();
+                 i++) {
+
+                System.out.println(
+                        (i + 1) + ". "
+                                + unresolvedDiscussion.get(i));
+            }
         }
 
-        System.out.println("/*end of unresolved discussion*/");
+        System.out.println(
+                "/* end of unresolved discussions */");
     }
 
-    static String markUnresolvedDiscussion(ArrayList<String> unresolvedDiscussion, BufferedReader in) throws IOException{
-        String temp = "";
+    static String markUnresolvedDiscussion(
+            ArrayList<String> unresolvedDiscussion,
+            BufferedReader in) throws IOException {
 
-        //instructions: 
-        System.out.println("MARK UNRESOLVED DISCUSSION: (enter the number)");
+        if (unresolvedDiscussion.isEmpty()) {
+            System.out.println(
+                    "There are no unresolved discussions.");
 
-        //loop until the user gets out of the loop 
-        do{
-            showUnresolvedDiscussion(unresolvedDiscussion);
-            temp = in.readLine();
-            if(!temp.contains("fj")){
-                unresolvedDiscussion.remove(Integer.parseInt(temp));
+            return readCommand(in);
+        }
+
+        System.out.println(
+                "MARK RESOLVED: enter the discussion number. "
+                        + "Enter any command when finished.");
+
+        while (true) {
+            showUnresolvedDiscussion(
+                    unresolvedDiscussion);
+
+            String input = in.readLine().strip();
+
+            if (isCommand(input)) {
+                return input.toLowerCase();
             }
-        }while(!temp.contains("fj"));
 
-        return temp;
+            try {
+                int discussionNumber =
+                        Integer.parseInt(input);
+
+                int index = discussionNumber - 1;
+
+                if (index < 0
+                        || index >= unresolvedDiscussion.size()) {
+
+                    System.out.println(
+                            "Invalid discussion number.");
+
+                } else {
+                    String resolved =
+                            unresolvedDiscussion.remove(index);
+
+                    System.out.println(
+                            "Resolved: " + resolved);
+
+                    if (unresolvedDiscussion.isEmpty()) {
+                        System.out.println(
+                                "No unresolved discussions remain.");
+                    }
+                }
+
+            } catch (NumberFormatException e) {
+                System.out.println(
+                        "Enter a valid discussion number.");
+            }
+        }
     }
 
-    static void end(BufferedReader in, File file, String startTime, ArrayList<String> attendance, File notes, ArrayList<String> tasks, ArrayList<String> assignedTasks, ArrayList<String> unresolvedDiscussion) throws IOException{
-        PrintWriter out = new PrintWriter(file);
-        //last questions: 
-        System.out.print("When is the next meeting? (Month date, year, at time): ");
+    static boolean confirmEnd(
+            BufferedReader in) throws IOException {
+
+        System.out.print(
+                "Are you sure you want to end? (Y/N): ");
+
+        String answer = in.readLine().strip();
+
+        return !answer.isEmpty()
+                && Character.toLowerCase(answer.charAt(0)) == 'y';
+    }
+
+    static void end(
+            BufferedReader in,
+            String startTime,
+            ArrayList<String> attendance,
+            ArrayList<String> notes,
+            ArrayList<Task> tasks,
+            ArrayList<String> unresolvedDiscussion)
+            throws IOException {
+
+        System.out.print(
+                "When is the next meeting? "
+                        + "(Month date, year, at time): ");
         String nextMeetingDate = in.readLine();
-        System.out.print("What time did the meeting end?: ");
+
+        System.out.print(
+                "What time did the meeting end?: ");
         String endTime = in.readLine();
+
         System.out.print("Who presided?: ");
         String presided = in.readLine();
-        System.out.print("What is your name as secretary?: ");
+
+        System.out.print(
+                "What is your name as secretary?: ");
         String secretary = in.readLine();
-        System.out.print("What is the date?(Month day, year): ");
+
+        System.out.print(
+                "What is the date? (Month day, year): ");
         String date = in.readLine();
-        System.out.print("Where did this meeting take place?: ");
+
+        System.out.print(
+                "Where did this meeting take place?: ");
         String place = in.readLine();
-        System.out.print("What was this meeting for? (e.g. Weekly Meeting of Board of Directors): ");
+
+        System.out.print(
+                "What was this meeting for? "
+                        + "(e.g. Weekly Meeting of Board of Directors): ");
         String why = in.readLine();
-        System.out.print("What is the organization?: ");
+
+        System.out.print(
+                "What is the organization?: ");
         String org = in.readLine();
 
-        //figure out how to format this in java, but print the title, hoepfully in all caps, and somehow make it centered (have not figured that out yet), and all in uppercase
-        out.println(org.toUpperCase());
-        out.println();
-        //then print out Minutes
-        out.println("Minutes");
-        out.println();
-        //then print the why 
-        out.println(why);
-        out.println();
-        //then print out the date 
-        out.println(date);
-        out.println();
-        out.println();
-        out.println();
-        //then print the location and all that stuff 
-        out.println("\tThe " + why + " was called to order at " + place + " at " + startTime + ".");
-        out.println();
-        //then print out the attendance record: 
-        out.print("\tAttendees: ");
-        out.print(attendance.get(0));
-        for(int i = 1; i < attendance.size(); i++){
-            out.print(", " + attendance.get(i));
-        }
-        out.println();
-        //then print who presided 
-        out.println(presided + " presided and " + secretary + " recorded the proceedings of the meeting.");
-        out.println();
-        //then print out the notes 
-        showCurrentNotes(notes);
-        out.println();
-        //any tasks assigned 
-        showCurrentTasks(tasks, assignedTasks);
-        //any unresolved discussions: 
-        showUnresolvedDiscussion(unresolvedDiscussion);
-        //when the next meeting is going to be 
-        out.println("The next meeting will be held on " + nextMeetingDate);
-        out.println();
-        //adjournemnt: 
-        out.println("There being no further business, the meeting was adjourned at " + endTime);
-        out.println();
-        out.println();
-        out.println();
+        try (PrintWriter out =
+                     new PrintWriter(new File(OUTPUT_FILE))) {
 
-        out.close();
+            out.println(org.toUpperCase());
+            out.println();
+            out.println("Minutes");
+            out.println();
+            out.println(why);
+            out.println(date);
+            out.println();
+
+            out.println(
+                    "The " + why
+                            + " was called to order at "
+                            + place
+                            + " at "
+                            + startTime
+                            + ".");
+
+            out.println();
+
+            if (attendance.isEmpty()) {
+                out.println(
+                        "Attendees: None recorded.");
+            } else {
+                out.println(
+                        "Attendees: "
+                                + String.join(", ", attendance));
+            }
+
+            out.println(
+                    presided
+                            + " presided and "
+                            + secretary
+                            + " recorded the proceedings "
+                            + "of the meeting.");
+
+            out.println();
+
+            out.println("Notes:");
+
+            if (notes.isEmpty()) {
+                out.println("- None recorded.");
+            } else {
+                for (String note : notes) {
+                    out.println("- " + note);
+                }
+            }
+
+            out.println();
+
+            out.println("Tasks:");
+
+            if (tasks.isEmpty()) {
+                out.println("- None recorded.");
+            } else {
+                for (Task task : tasks) {
+                    out.println(
+                            "- "
+                                    + task.description
+                                    + " - "
+                                    + task.assignee);
+                }
+            }
+
+            out.println();
+
+            out.println("Unresolved Discussions:");
+
+            if (unresolvedDiscussion.isEmpty()) {
+                out.println("- None.");
+            } else {
+                for (String discussion :
+                        unresolvedDiscussion) {
+
+                    out.println("- " + discussion);
+                }
+            }
+
+            out.println();
+
+            out.println(
+                    "The next meeting will be held on "
+                            + nextMeetingDate
+                            + ".");
+
+            out.println();
+
+            out.println(
+                    "There being no further business, "
+                            + "the meeting was adjourned at "
+                            + endTime
+                            + ".");
+        }
     }
 }
